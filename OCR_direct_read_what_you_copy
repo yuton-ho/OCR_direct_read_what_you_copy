@@ -1,0 +1,125 @@
+import io  
+import numpy as np  
+import easyocr  
+from PIL import Image, ImageGrab  
+import matplotlib.pyplot as plt  
+
+def read_clipboard_image():
+    """
+    從剪貼板讀取圖像並返回圖像對象和相關信息
+    
+    返回:
+        image: PIL圖像對象
+        info: 圖像的相關信息字典
+    """
+    try:
+        # 嘗試從剪貼板獲取圖像
+        image = ImageGrab.grabclipboard()  # 使用PIL的ImageGrab模組從系統剪貼板獲取內容
+        
+        # 檢查是否成功獲取到圖像（如果剪貼板中沒有圖像，則返回None）
+        if image is None:
+            print("剪貼板中沒有圖像。請先複製一個圖像到剪貼板。")
+            return None, None
+            
+        # 獲取並組織圖像的基本信息到一個字典中
+        info = {
+            "格式": getattr(image, 'format', 'Unknown'),  # 使用getattr安全地獲取屬性，如果不存在則返回'Unknown'
+            "大小": image.size,  # 圖像尺寸，格式為(寬,高)的元組
+            "模式": image.mode,  # 圖像的顏色模式，如'RGB', 'RGBA', 'L'(灰度)等
+            "寬度": image.width,  # 圖像寬度（像素）
+            "高度": image.height  # 圖像高度（像素）
+        }
+        
+        # 將PIL圖像轉換為numpy數組，便於後續處理和分析
+        image_array = np.array(image)
+        info["數組形狀"] = image_array.shape  # 添加數組形狀信息，通常為(高,寬,通道數)
+        
+        # 輸出圖像讀取成功的信息及基本圖像參數
+        print("成功從剪貼板讀取圖像")
+        print("圖像信息:")
+        for key, value in info.items():
+            print(f"  {key}: {value}")
+        
+        # 返回PIL圖像對象和圖像信息字典
+        return image, info
+    
+    except Exception as e:
+        # 異常處理：捕獲並顯示錯誤信息
+        print(f"讀取剪貼板圖像時發生錯誤: {e}")
+        return None, None
+    
+
+def ocr_scan(image) -> str:
+    """
+    對圖片進行OCR識別
+    
+    參數:
+        image: 可以是以下任一類型:
+               - PIL Image對象
+               - numpy數組
+               - bytes對象 (圖片的二進制數據)
+               - 圖片文件路徑 (字符串)
+    
+    返回:
+        str: 識別出的文本
+    """
+    # 初始化easyocr的Reader對象，指定語言為英文，並禁用GPU加速
+    reader = easyocr.Reader(['en'], gpu=False)
+    
+    # 根據輸入圖像的不同類型進行適當的轉換處理
+    if isinstance(image, str):
+        # 如果輸入是字符串，則假定它是圖像文件的路徑，直接傳給easyocr
+        img_for_ocr = image
+    elif isinstance(image, np.ndarray):
+        # 如果輸入是numpy數組，直接使用
+        img_for_ocr = image
+    elif isinstance(image, Image.Image):
+        # 如果輸入是PIL圖像對象，轉換為numpy數組
+        img_for_ocr = np.array(image)
+    elif isinstance(image, bytes):
+        # 如果輸入是二進制數據，先轉為PIL圖像再轉為numpy數組
+        img_for_ocr = np.array(Image.open(io.BytesIO(image)))
+    else:
+        # 如果輸入類型不是上述任何一種，則拋出類型錯誤
+        raise TypeError("不支援的圖片類型。請提供PIL Image、numpy數組、bytes或檔案路徑。")
+    
+    # 執行OCR識別
+    result = reader.readtext(
+        img_for_ocr,
+        #allowlist='0123456789', #設定可以辨識的字的範圍
+        paragraph=False,  # 是否將鄰近文本段落化，False表示分別處理每個文本區域
+        min_size=10,  # 最小可識別文本的大小（像素）
+        text_threshold=0.5,  # 文本檢測的置信度閾值
+        link_threshold=0.4,  # 文本區域連接的閾值
+        low_text=0.4  # 低置信度文本的閾值
+    )
+    
+    # 處理OCR結果：將所有識別出的文本片段連接成一個字符串
+    # result是一個列表，每個元素是一個元組 (bbox, text, conf)
+    # 其中bbox是文本區域的邊界框座標，text是識別出的文本，conf是置信度
+    recognize_text = " ".join(elem[1] for elem in result)
+    
+    return recognize_text
+
+def main():
+    # 從剪貼板讀取圖像
+    image, info = read_clipboard_image()
+    print(ocr_scan(image))
+    '''
+    if image:
+        # 如果成功讀取到圖像，則顯示它
+        plt.figure(figsize=(10, 8))  # 創建一個指定大小的圖形
+        plt.imshow(np.array(image))  # 顯示圖像
+        plt.axis('off')  # 關閉坐標軸
+        plt.title("從剪貼板讀取的圖像")  # 設置圖像標題
+        plt.show()  # 顯示圖像窗口
+    
+        # 對圖像進行OCR識別並打印結果
+    '''
+    
+        
+
+
+# 程序入口點：當腳本被直接執行而不是作為模塊導入時運行main函數
+if __name__ == "__main__":
+    main()

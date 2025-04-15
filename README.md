@@ -16,9 +16,9 @@ If you copy a image, use this program it can read what you copy by OCR.
 結束
 ```
 我選擇辨識的是英文，想客製辨識在reader.readtext()中修改。
-這次的修改聚焦在ocr_scan()，加入
+這次的修改聚焦在ocr_scan()，加入:
+
     reader = easyocr.Reader(['en'], gpu=False)#easyocr.Reader(語言, gpu=是否需要)
-    
     # 根據輸入圖像的不同類型進行適當的轉換處理
     if isinstance(image, str):
         # 如果輸入是字符串，則假定它是圖像文件的路徑，直接傳給easyocr
@@ -35,3 +35,5 @@ If you copy a image, use this program it can read what you copy by OCR.
     else:
         # 如果輸入類型不是上述任何一種，則拋出類型錯誤
         raise TypeError("不支援的圖片類型。請提供PIL Image、numpy數組、bytes或檔案路徑。")
+
+依照可能的copy方式讀取圖片
